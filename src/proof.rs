@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use blake3::Hasher;
-use crate::errors::{LelantusError, Result};
+use crate::errors::Result;
 use crate::parameters::LelantusParameters;
 use crate::commitment::Commitment;
 use crate::witness::Witness;
@@ -38,7 +38,7 @@ impl RangeProof {
     }
     
     /// Verify the range proof
-    pub fn verify(&self, parameters: &LelantusParameters) -> Result<bool> {
+    pub fn verify(&self, _parameters: &LelantusParameters) -> Result<bool> {
         // Verify range proof
         let mut hasher = Hasher::new();
         hasher.update(&self.commitment);
@@ -68,7 +68,7 @@ impl ZKProof {
         inputs: &[(Commitment, Witness)],
         outputs: &[Commitment],
         fee: u64,
-        parameters: &LelantusParameters,
+        _parameters: &LelantusParameters,
     ) -> Result<Self> {
         // Create challenge
         let mut hasher = Hasher::new();

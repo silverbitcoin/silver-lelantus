@@ -24,7 +24,6 @@ pub use parameters::{LelantusParameters, PrivacyLevel};
 pub use proof::{RangeProof, ZKProof};
 pub use witness::Witness;
 
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use parking_lot::RwLock;
 
