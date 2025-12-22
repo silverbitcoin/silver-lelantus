@@ -23,6 +23,18 @@ impl Commitment {
             value: self.value.clone(),
         })
     }
+    
+    /// Serialize commitment to bytes
+    pub fn serialize(&self) -> Result<Vec<u8>> {
+        bincode::serialize(self)
+            .map_err(|e| LelantusError::SerializationError(e.to_string()))
+    }
+    
+    /// Deserialize commitment from bytes
+    pub fn deserialize(data: &[u8]) -> Result<Self> {
+        bincode::deserialize(data)
+            .map_err(|e| LelantusError::SerializationError(e.to_string()))
+    }
 }
 
 /// Accumulator element
