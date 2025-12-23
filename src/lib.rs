@@ -26,6 +26,7 @@ pub use witness::Witness;
 
 use std::sync::Arc;
 use parking_lot::RwLock;
+use sha2::{Sha512, Digest};
 
 /// Lelantus protocol version
 pub const LELANTUS_VERSION: u32 = 1;
@@ -63,7 +64,7 @@ impl LelantusState {
             commitment_scheme: Arc::new(commitment_scheme),
             parameters: Arc::new(parameters),
             witness_cache: Arc::new(RwLock::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(1000).unwrap(),
+                std::num::NonZeroUsize::new(1000).expect("LRU cache size must be non-zero"),
             ))),
         })
     }
@@ -109,13 +110,13 @@ impl LelantusState {
                 let amount = witness.get_amount()
                     .unwrap_or_else(|| {
                         // Fallback: derive from commitment hash if witness doesn't have amount
-                        let mut hasher = blake3::Hasher::new();
+                        let mut hasher = Sha512::new();
                         let commitment_bytes = commitment.serialize().unwrap_or_default();
                         hasher.update(&commitment_bytes);
                         let hash = hasher.finalize();
                         u64::from_le_bytes([
-                            hash.as_bytes()[0], hash.as_bytes()[1], hash.as_bytes()[2], hash.as_bytes()[3],
-                            hash.as_bytes()[4], hash.as_bytes()[5], hash.as_bytes()[6], hash.as_bytes()[7],
+                            hash[0], hash[1], hash[2], hash[3],
+                            hash[4], hash[5], hash[6], hash[7],
                         ])
                     });
                 

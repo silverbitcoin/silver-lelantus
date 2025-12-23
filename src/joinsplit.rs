@@ -1,6 +1,7 @@
 //! JoinSplit transaction for Lelantus
 
 use serde::{Deserialize, Serialize};
+use serde_json;
 use crate::commitment::Commitment;
 use crate::proof::{RangeProof, ZKProof};
 
@@ -43,12 +44,12 @@ impl JoinSplit {
     
     /// Serialize the JoinSplit
     pub fn serialize(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(bincode::serialize(self)?)
+        Ok(serde_json::to_vec(self)?)
     }
     
     /// Deserialize the JoinSplit
     pub fn deserialize(data: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(bincode::deserialize(data)?)
+        Ok(serde_json::from_slice(data)?)
     }
 }
 

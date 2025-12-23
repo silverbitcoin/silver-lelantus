@@ -1,7 +1,9 @@
 //! Lelantus accumulator implementation
 
 use serde::{Deserialize, Serialize};
-use blake3::Hasher;
+use sha2::{Sha512, Digest};
+use hex;
+use serde_json;
 use crate::errors::{LelantusError, Result};
 use crate::parameters::LelantusParameters;
 use crate::commitment::AccumulatorElement;
@@ -25,9 +27,9 @@ impl Accumulator {
         parameters.validate()?;
         
         // Initialize with generator
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         hasher.update(&parameters.accumulator_base);
-        let initial_value = hasher.finalize().as_bytes().to_vec();
+        let initial_value = hex::encode(hasher.finalize()).into_bytes();
         
         Ok(Self {
             value: initial_value,
@@ -39,11 +41,11 @@ impl Accumulator {
     /// Add an element to the accumulator
     pub fn add_element(&mut self, element: AccumulatorElement) -> Result<()> {
         // Update accumulator: new_value = H(old_value || element)
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         hasher.update(&self.value);
         hasher.update(&element.value);
         
-        self.value = hasher.finalize().as_bytes().to_vec();
+        self.value = hex::encode(hasher.finalize()).into_bytes();
         self.elements.push(element);
         
         Ok(())
@@ -66,13 +68,13 @@ impl Accumulator {
     
     /// Serialize the accumulator
     pub fn serialize(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
+        serde_json::to_vec(self)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
     
     /// Deserialize the accumulator
     pub fn deserialize(data: &[u8]) -> Result<Self> {
-        bincode::deserialize(data)
+        serde_json::from_slice(data)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
     
@@ -88,10 +90,10 @@ impl Accumulator {
         
         // Build path by accumulating all elements
         for (i, element) in self.elements.iter().enumerate() {
-            let mut hasher = Hasher::new();
+            let mut hasher = Sha512::new();
             hasher.update(&current_value);
             hasher.update(&element.value);
-            current_value = hasher.finalize().as_bytes().to_vec();
+            current_value = hex::encode(hasher.finalize()).into_bytes();
             
             path.push(ProofNode {
                 value: element.value.clone(),
@@ -116,10 +118,10 @@ impl Accumulator {
         let mut current_value = self.parameters.accumulator_base.clone();
         
         for node in proof.path.iter() {
-            let mut hasher = Hasher::new();
+            let mut hasher = Sha512::new();
             hasher.update(&current_value);
             hasher.update(&node.value);
-            current_value = hasher.finalize().as_bytes().to_vec();
+            current_value = hex::encode(hasher.finalize()).into_bytes();
         }
         
         // Verify the reconstructed value matches the proof's accumulator value

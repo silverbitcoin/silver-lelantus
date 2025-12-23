@@ -1,7 +1,7 @@
 //! Zero-knowledge proofs for Lelantus
 
 use serde::{Deserialize, Serialize};
-use blake3::Hasher;
+use sha2::{Sha512, Digest};
 use crate::errors::Result;
 use crate::parameters::LelantusParameters;
 use crate::commitment::Commitment;
@@ -24,11 +24,11 @@ impl RangeProof {
     /// Create a range proof
     pub fn create(commitment: &Commitment, parameters: &LelantusParameters) -> Result<Self> {
         // Generate range proof using Bulletproofs
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         hasher.update(&commitment.value);
-        hasher.update(&parameters.range_proof_bits.to_le_bytes());
+        hasher.update(parameters.range_proof_bits.to_le_bytes());
         
-        let proof_data = hasher.finalize().as_bytes().to_vec();
+        let proof_data = hex::encode(hasher.finalize()).into_bytes();
         
         Ok(Self {
             proof_data,
@@ -40,11 +40,11 @@ impl RangeProof {
     /// Verify the range proof
     pub fn verify(&self, _parameters: &LelantusParameters) -> Result<bool> {
         // Verify range proof
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         hasher.update(&self.commitment);
-        hasher.update(&self.bit_length.to_le_bytes());
+        hasher.update(self.bit_length.to_le_bytes());
         
-        let expected_proof = hasher.finalize().as_bytes().to_vec();
+        let expected_proof = hex::encode(hasher.finalize()).into_bytes();
         Ok(self.proof_data == expected_proof)
     }
 }
@@ -71,7 +71,7 @@ impl ZKProof {
         _parameters: &LelantusParameters,
     ) -> Result<Self> {
         // Create challenge
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         
         for (commitment, _) in inputs {
             hasher.update(&commitment.value);
@@ -81,26 +81,26 @@ impl ZKProof {
             hasher.update(&commitment.value);
         }
         
-        hasher.update(&fee.to_le_bytes());
+        hasher.update(fee.to_le_bytes());
         
-        let challenge = hasher.finalize().as_bytes().to_vec();
+        let challenge = hex::encode(hasher.finalize()).into_bytes();
         
         // Create response
-        let mut response_hasher = Hasher::new();
+        let mut response_hasher = Sha512::new();
         response_hasher.update(&challenge);
         
         for (_, witness) in inputs {
             response_hasher.update(&witness.commitment.randomness);
         }
         
-        let response = response_hasher.finalize().as_bytes().to_vec();
+        let response = hex::encode(response_hasher.finalize()).into_bytes();
         
         // Create proof data
-        let mut proof_hasher = Hasher::new();
+        let mut proof_hasher = Sha512::new();
         proof_hasher.update(&challenge);
         proof_hasher.update(&response);
         
-        let proof_data = proof_hasher.finalize().as_bytes().to_vec();
+        let proof_data = hex::encode(proof_hasher.finalize()).into_bytes();
         
         Ok(Self {
             proof_data,
@@ -118,7 +118,7 @@ impl ZKProof {
         _parameters: &LelantusParameters,
     ) -> Result<bool> {
         // Recreate challenge
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         
         for commitment in inputs {
             hasher.update(&commitment.value);
@@ -130,7 +130,7 @@ impl ZKProof {
         
         hasher.update(accumulator_value);
         
-        let expected_challenge = hasher.finalize().as_bytes().to_vec();
+        let expected_challenge = hex::encode(hasher.finalize()).into_bytes();
         
         // Verify challenge matches
         if self.challenge != expected_challenge {
@@ -138,11 +138,11 @@ impl ZKProof {
         }
         
         // Verify proof data
-        let mut proof_hasher = Hasher::new();
+        let mut proof_hasher = Sha512::new();
         proof_hasher.update(&self.challenge);
         proof_hasher.update(&self.response);
         
-        let expected_proof = proof_hasher.finalize().as_bytes().to_vec();
+        let expected_proof = hex::encode(proof_hasher.finalize()).into_bytes();
         
         Ok(self.proof_data == expected_proof)
     }

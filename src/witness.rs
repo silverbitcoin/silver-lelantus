@@ -1,6 +1,7 @@
 //! Witness for Lelantus proofs
 
 use serde::{Deserialize, Serialize};
+use serde_json;
 use crate::errors::{LelantusError, Result};
 use crate::commitment::Commitment;
 
@@ -97,13 +98,13 @@ impl Witness {
     
     /// Serialize the witness
     pub fn serialize(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
+        serde_json::to_vec(self)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
     
     /// Deserialize the witness
     pub fn deserialize(data: &[u8]) -> Result<Self> {
-        bincode::deserialize(data)
+        serde_json::from_slice(data)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
 }

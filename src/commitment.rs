@@ -1,7 +1,9 @@
 //! Commitment scheme for Lelantus
 
 use serde::{Deserialize, Serialize};
-use blake3::Hasher;
+use sha2::{Sha512, Digest};
+use hex;
+use serde_json;
 use rand::Rng;
 use crate::errors::{LelantusError, Result};
 use crate::parameters::LelantusParameters;
@@ -26,13 +28,13 @@ impl Commitment {
     
     /// Serialize commitment to bytes
     pub fn serialize(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
+        serde_json::to_vec(self)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
     
     /// Deserialize commitment from bytes
     pub fn deserialize(data: &[u8]) -> Result<Self> {
-        bincode::deserialize(data)
+        serde_json::from_slice(data)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
 }
@@ -79,12 +81,12 @@ impl CommitmentScheme {
             .collect();
         
         // Compute commitment: H(generator || value || randomness)
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         hasher.update(&self.generator);
-        hasher.update(&value.to_le_bytes());
+        hasher.update(value.to_le_bytes());
         hasher.update(&randomness);
         
-        let commitment_value = hasher.finalize().as_bytes().to_vec();
+        let commitment_value = hex::encode(hasher.finalize()).into_bytes();
         
         Ok(Commitment {
             value: commitment_value,
@@ -107,12 +109,12 @@ impl CommitmentScheme {
         }
         
         // Compute commitment: H(generator || value || randomness)
-        let mut hasher = Hasher::new();
+        let mut hasher = Sha512::new();
         hasher.update(&self.generator);
-        hasher.update(&value.to_le_bytes());
+        hasher.update(value.to_le_bytes());
         hasher.update(&randomness);
         
-        let commitment_value = hasher.finalize().as_bytes().to_vec();
+        let commitment_value = hex::encode(hasher.finalize()).into_bytes();
         
         Ok(Commitment {
             value: commitment_value,

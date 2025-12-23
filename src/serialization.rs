@@ -1,19 +1,20 @@
 //! Serialization utilities for Lelantus
 
 use serde::{Deserialize, Serialize};
+use serde_json;
 use crate::errors::{LelantusError, Result};
 
 /// Serializable wrapper for Lelantus types
 pub trait LelantusSerializable: Serialize + for<'de> Deserialize<'de> {
     /// Serialize to bytes
     fn to_bytes(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
+        serde_json::to_vec(self)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
     
     /// Deserialize from bytes
     fn from_bytes(data: &[u8]) -> Result<Self> {
-        bincode::deserialize(data)
+        serde_json::from_slice(data)
             .map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
 }

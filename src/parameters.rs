@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use crate::errors::{LelantusError, Result};
+use silver_core::MIST_PER_SLVR;
 
 /// Privacy level for Lelantus transactions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,16 +71,19 @@ pub struct LelantusParameters {
 
 impl Default for LelantusParameters {
     fn default() -> Self {
+        const MAX_SUPPLY_SLVR: u64 = 21_000_000; // 21M SLVR
+        let max_coin_value = MAX_SUPPLY_SLVR.saturating_mul(MIST_PER_SLVR);
+        
         Self {
             privacy_level: PrivacyLevel::Standard,
-            accumulator_modulus_bits: 2048,
-            randomness_bits: 256,
-            range_proof_bits: 64,
-            max_coin_value: 21_000_000 * 100_000_000, // 21M BTC in satoshis
+            accumulator_modulus_bits: 4096,
+            randomness_bits: 512,
+            range_proof_bits: 128,
+            max_coin_value,
             min_coin_value: 1,
-            accumulator_base: vec![2; 256],
-            generator: vec![3; 256],
-            hash_function: "blake3".to_string(),
+            accumulator_base: vec![2; 512],
+            generator: vec![3; 512],
+            hash_function: "sha512".to_string(),
             proof_system: "bulletproofs".to_string(),
         }
     }
@@ -100,7 +104,7 @@ impl LelantusParameters {
             return Err(LelantusError::InvalidParameter);
         }
         
-        if self.randomness_bits < 128 {
+        if self.randomness_bits < 512 {
             return Err(LelantusError::InvalidParameter);
         }
         
