@@ -61,8 +61,15 @@ mod tests {
     fn test_hex_encoding() {
         let data = vec![1, 2, 3, 4, 5];
         let encoded = hex_util::encode(&data);
-        let decoded = hex_util::decode(&encoded).unwrap();
-        assert_eq!(data, decoded);
+        match hex_util::decode(&encoded) {
+            Ok(decoded) => {
+                assert_eq!(data, decoded);
+            }
+            Err(e) => {
+                // PRODUCTION: Proper error assertion instead of panic
+                assert!(false, "Hex decoding failed: {:?}", e);
+            }
+        }
     }
     
     #[test]
@@ -72,9 +79,22 @@ mod tests {
             randomness: vec![2; 32],
         };
         
-        let json_str = json::encode(&commitment).unwrap();
-        let decoded: Commitment = json::decode(&json_str).unwrap();
-        
-        assert_eq!(commitment.value, decoded.value);
+        match json::encode(&commitment) {
+            Ok(json_str) => {
+                match json::decode::<Commitment>(&json_str) {
+                    Ok(decoded) => {
+                        assert_eq!(commitment.value, decoded.value);
+                    }
+                    Err(e) => {
+                        // PRODUCTION: Proper error assertion instead of panic
+                        assert!(false, "JSON decoding failed: {:?}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                // PRODUCTION: Proper error assertion instead of panic
+                assert!(false, "JSON encoding failed: {:?}", e);
+            }
+        }
     }
 }

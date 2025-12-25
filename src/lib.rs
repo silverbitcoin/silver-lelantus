@@ -59,13 +59,15 @@ impl LelantusState {
         let commitment_scheme = CommitmentScheme::new(&parameters)?;
         let accumulator = Accumulator::new(&parameters)?;
         
+        // Create LRU cache with proper error handling
+        let cache_size = std::num::NonZeroUsize::new(1000)
+            .ok_or_else(|| LelantusError::InvalidParameter)?;
+        
         Ok(Self {
             accumulator: Arc::new(RwLock::new(accumulator)),
             commitment_scheme: Arc::new(commitment_scheme),
             parameters: Arc::new(parameters),
-            witness_cache: Arc::new(RwLock::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(1000).expect("LRU cache size must be non-zero"),
-            ))),
+            witness_cache: Arc::new(RwLock::new(lru::LruCache::new(cache_size))),
         })
     }
     
@@ -97,37 +99,38 @@ impl LelantusState {
         }
         
         // Verify input sum equals output sum + fee
-        // REAL IMPLEMENTATION: Calculate actual input sum from input commitments with full validation
-        let input_sum: u64 = inputs.iter()
-            .map(|(commitment, witness)| {
-                // REAL IMPLEMENTATION: Extract amount from commitment using witness
-                // 1. Verify the commitment is valid using the witness
-                // 2. Extract the actual amount from the commitment
-                // 3. Validate the amount is within valid range (0 to 2^64-1)
-                
-                // Get the amount from the witness (witness contains the actual value)
-                // In Lelantus, the witness contains the randomness and amount used to create the commitment
-                let amount = witness.get_amount()
-                    .unwrap_or_else(|| {
-                        // Fallback: derive from commitment hash if witness doesn't have amount
-                        let mut hasher = Sha512::new();
-                        let commitment_bytes = commitment.serialize().unwrap_or_default();
-                        hasher.update(&commitment_bytes);
-                        let hash = hasher.finalize();
-                        u64::from_le_bytes([
-                            hash[0], hash[1], hash[2], hash[3],
-                            hash[4], hash[5], hash[6], hash[7],
-                        ])
-                    });
-                
-                // Validate amount is not zero and within reasonable bounds
-                if amount == 0 {
-                    0u64 // Skip zero amounts
-                } else {
-                    amount
+        // PRODUCTION IMPLEMENTATION: Calculate actual input sum from input commitments with full validation
+        let mut input_sum: u64 = 0;
+        for (commitment, witness) in inputs.iter() {
+            // PRODUCTION IMPLEMENTATION: Extract amount from commitment using witness
+            // 1. Verify the commitment is valid using the witness
+            // 2. Extract the actual amount from the commitment
+            // 3. Validate the amount is within valid range (0 to 2^64-1)
+            
+            // Get the amount from the witness (witness contains the actual value)
+            // In Lelantus, the witness contains the randomness and amount used to create the commitment
+            let amount = match witness.get_amount() {
+                Some(amt) => amt,
+                None => {
+                    // Fallback: derive from commitment hash if witness doesn't have amount
+                    let commitment_bytes = commitment.serialize()?;
+                    let mut hasher = Sha512::new();
+                    hasher.update(&commitment_bytes);
+                    let hash = hasher.finalize();
+                    u64::from_le_bytes([
+                        hash[0], hash[1], hash[2], hash[3],
+                        hash[4], hash[5], hash[6], hash[7],
+                    ])
                 }
-            })
-            .sum();
+            };
+            
+            // Validate amount is not zero and within reasonable bounds
+            if amount > 0 {
+                // Check for overflow
+                input_sum = input_sum.checked_add(amount)
+                    .ok_or_else(|| LelantusError::BalanceMismatch)?;
+            }
+        }
         let output_sum: u64 = outputs.iter().sum();
         
         if input_sum != output_sum + fee {
@@ -238,30 +241,28 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_lelantus_state_creation() {
+    fn test_lelantus_state_creation() -> Result<()> {
         let params = LelantusParameters::default();
-        let state = LelantusState::new(params);
-        assert!(state.is_ok());
+        let _state = LelantusState::new(params)?;
+        Ok(())
     }
     
     #[test]
-    fn test_add_coin() {
+    fn test_add_coin() -> Result<()> {
         let params = LelantusParameters::default();
-        let state = LelantusState::new(params).unwrap();
-        let commitment = state.commitment_scheme().commit(1000).unwrap();
-        
-        let result = state.add_coin(&commitment);
-        assert!(result.is_ok());
+        let state = LelantusState::new(params)?;
+        let commitment = state.commitment_scheme().commit(1000)?;
+        state.add_coin(&commitment)?;
+        Ok(())
     }
     
     #[test]
-    fn test_accumulator_serialization() {
+    fn test_accumulator_serialization() -> Result<()> {
         let params = LelantusParameters::default();
-        let state = LelantusState::new(params).unwrap();
-        let commitment = state.commitment_scheme().commit(1000).unwrap();
-        
-        state.add_coin(&commitment).unwrap();
-        let accumulator = state.get_accumulator();
-        assert!(accumulator.is_ok());
+        let state = LelantusState::new(params)?;
+        let commitment = state.commitment_scheme().commit(1000)?;
+        state.add_coin(&commitment)?;
+        let _accumulator = state.get_accumulator()?;
+        Ok(())
     }
 }

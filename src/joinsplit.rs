@@ -125,10 +125,23 @@ mod tests {
             fee: 100,
         };
         
-        let serialized = joinsplit.serialize().unwrap();
-        let deserialized = JoinSplit::deserialize(&serialized).unwrap();
-        
-        assert_eq!(joinsplit.input_count(), deserialized.input_count());
-        assert_eq!(joinsplit.output_count(), deserialized.output_count());
+        match joinsplit.serialize() {
+            Ok(serialized) => {
+                match JoinSplit::deserialize(&serialized) {
+                    Ok(deserialized) => {
+                        assert_eq!(joinsplit.input_count(), deserialized.input_count());
+                        assert_eq!(joinsplit.output_count(), deserialized.output_count());
+                    }
+                    Err(e) => {
+                        // PRODUCTION: Proper error assertion instead of panic
+                        assert!(false, "Deserialization failed: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                // PRODUCTION: Proper error assertion instead of panic
+                assert!(false, "Serialization failed: {}", e);
+            }
+        }
     }
 }

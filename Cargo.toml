@@ -1,6 +1,6 @@
 [package]
 name = "silver-lelantus"
-version = "2.5.3"
+version = "2.5.4"
 edition = "2021"
 rust-version = "1.90"
 authors = ["SilverBitcoin Team <team@silverbitcoin.org>"]
@@ -16,6 +16,7 @@ tokio = { version = "1.48", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+hmac = "0.12"
 rand = { version = "0.8", features = ["std", "std_rng"] }
 rand_core = { version = "0.6", features = ["std"] }
 zeroize = { version = "1.7", features = ["derive"] }
@@ -24,7 +25,7 @@ anyhow = "1.0"
 tracing = "0.1"
 bytes = "1.5"
 hex = "0.4"
-silver-core = { path = "../silver-core", version = "2.5.3" }
+silver-core = { path = "../silver-core", version = "2.5.4" }
 
 # Cryptography (512-bit only)
 pqcrypto-sphincsplus = "0.7"

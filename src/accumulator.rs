@@ -157,72 +157,74 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_accumulator_creation() {
+    #[test]
+    fn test_accumulator_creation() -> Result<()> {
         let params = LelantusParameters::default();
-        let accumulator = Accumulator::new(&params);
-        assert!(accumulator.is_ok());
+        let _accumulator = Accumulator::new(&params)?;
+        Ok(())
     }
     
     #[test]
-    fn test_add_element() {
+    fn test_add_element() -> Result<()> {
         let params = LelantusParameters::default();
-        let mut accumulator = Accumulator::new(&params).unwrap();
-        
+        let mut accumulator = Accumulator::new(&params)?;
         let element = AccumulatorElement {
             value: vec![1; 32],
         };
         
-        assert!(accumulator.add_element(element).is_ok());
+        accumulator.add_element(element)?;
         assert_eq!(accumulator.element_count(), 1);
+        Ok(())
     }
     
     #[test]
-    fn test_multiple_elements() {
+    fn test_multiple_elements() -> Result<()> {
         let params = LelantusParameters::default();
-        let mut accumulator = Accumulator::new(&params).unwrap();
+        let mut accumulator = Accumulator::new(&params)?;
         
         for i in 0..10 {
             let element = AccumulatorElement {
                 value: vec![i as u8; 32],
             };
-            assert!(accumulator.add_element(element).is_ok());
+            accumulator.add_element(element)?;
         }
         
         assert_eq!(accumulator.element_count(), 10);
+        Ok(())
     }
     
     #[test]
-    fn test_serialization() {
+    fn test_serialization() -> Result<()> {
         let params = LelantusParameters::default();
-        let mut accumulator = Accumulator::new(&params).unwrap();
-        
+        let mut accumulator = Accumulator::new(&params)?;
         let element = AccumulatorElement {
             value: vec![42; 32],
         };
-        accumulator.add_element(element).unwrap();
+        accumulator.add_element(element)?;
         
-        let serialized = accumulator.serialize().unwrap();
-        let deserialized = Accumulator::deserialize(&serialized).unwrap();
-        
+        let serialized = accumulator.serialize()?;
+        let deserialized = Accumulator::deserialize(&serialized)?;
         assert_eq!(accumulator.element_count(), deserialized.element_count());
+        Ok(())
     }
     
     #[test]
-    fn test_membership_proof() {
+    fn test_membership_proof() -> Result<()> {
         let params = LelantusParameters::default();
-        let mut accumulator = Accumulator::new(&params).unwrap();
+        let mut accumulator = Accumulator::new(&params)?;
         
         for i in 0..5 {
             let element = AccumulatorElement {
                 value: vec![i as u8; 32],
             };
-            accumulator.add_element(element).unwrap();
+            accumulator.add_element(element)?;
         }
         
-        let proof = accumulator.create_membership_proof(2).unwrap();
+        let proof = accumulator.create_membership_proof(2)?;
         // Verify proof structure is valid
         assert_eq!(proof.element_index, 2);
         assert_eq!(proof.path.len(), 5);
         assert!(!proof.accumulator_value.is_empty());
+        Ok(())
     }
 }

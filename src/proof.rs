@@ -153,27 +153,30 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_range_proof_creation() {
+    #[test]
+    fn test_range_proof_creation() -> Result<()> {
         let params = LelantusParameters::default();
         let commitment = Commitment {
             value: vec![1; 32],
             randomness: vec![2; 32],
         };
         
-        let proof = RangeProof::create(&commitment, &params);
-        assert!(proof.is_ok());
+        let _proof = RangeProof::create(&commitment, &params)?;
+        Ok(())
     }
     
     #[test]
-    fn test_range_proof_verification() {
+    fn test_range_proof_verification() -> Result<()> {
         let params = LelantusParameters::default();
         let commitment = Commitment {
             value: vec![1; 32],
             randomness: vec![2; 32],
         };
         
-        let proof = RangeProof::create(&commitment, &params).unwrap();
-        assert!(proof.verify(&params).unwrap());
+        let proof = RangeProof::create(&commitment, &params)?;
+        let valid = proof.verify(&params)?;
+        assert!(valid);
+        Ok(())
     }
     
     #[test]

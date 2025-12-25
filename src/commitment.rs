@@ -148,42 +148,48 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_commitment_creation() {
+    #[test]
+    fn test_commitment_creation() -> Result<()> {
         let params = LelantusParameters::default();
-        let scheme = CommitmentScheme::new(&params).unwrap();
-        
-        let commitment = scheme.commit(1000).unwrap();
+        let scheme = CommitmentScheme::new(&params)?;
+        let commitment = scheme.commit(1000)?;
         assert!(!commitment.value.is_empty());
         assert!(!commitment.randomness.is_empty());
+        Ok(())
     }
     
     #[test]
-    fn test_commitment_verification() {
+    fn test_commitment_verification() -> Result<()> {
         let params = LelantusParameters::default();
-        let scheme = CommitmentScheme::new(&params).unwrap();
+        let scheme = CommitmentScheme::new(&params)?;
+        let commitment = scheme.commit(1000)?;
         
-        let commitment = scheme.commit(1000).unwrap();
-        assert!(scheme.verify(&commitment, 1000).unwrap());
-        assert!(!scheme.verify(&commitment, 2000).unwrap());
+        let valid = scheme.verify(&commitment, 1000)?;
+        assert!(valid);
+        
+        let invalid = scheme.verify(&commitment, 2000)?;
+        assert!(!invalid);
+        Ok(())
     }
     
     #[test]
-    fn test_commitment_with_randomness() {
+    fn test_commitment_with_randomness() -> Result<()> {
         let params = LelantusParameters::default();
-        let scheme = CommitmentScheme::new(&params).unwrap();
-        
+        let scheme = CommitmentScheme::new(&params)?;
         let randomness = vec![42; params.randomness_bits / 8];
-        let commitment = scheme.commit_with_randomness(1000, randomness.clone()).unwrap();
+        let commitment = scheme.commit_with_randomness(1000, randomness)?;
         
-        assert!(scheme.verify(&commitment, 1000).unwrap());
+        let valid = scheme.verify(&commitment, 1000)?;
+        assert!(valid);
+        Ok(())
     }
     
     #[test]
-    fn test_invalid_commitment_value() {
+    fn test_invalid_commitment_value() -> Result<()> {
         let params = LelantusParameters::default();
-        let scheme = CommitmentScheme::new(&params).unwrap();
-        
+        let scheme = CommitmentScheme::new(&params)?;
         let result = scheme.commit(params.max_coin_value + 1);
         assert!(result.is_err());
+        Ok(())
     }
 }

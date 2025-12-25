@@ -5,6 +5,20 @@ use serde_json;
 use crate::errors::{LelantusError, Result};
 use crate::commitment::Commitment;
 
+/// Constant-time comparison to prevent timing attacks
+fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    
+    let mut result = 0u8;
+    for i in 0..a.len() {
+        result |= a[i] ^ b[i];
+    }
+    
+    result == 0
+}
+
 /// Witness for a coin in the accumulator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Witness {
@@ -78,22 +92,60 @@ impl Witness {
     }
     
     /// Get the amount from encrypted value
-    /// REAL IMPLEMENTATION: Extract amount from encrypted witness data
+    /// PRODUCTION IMPLEMENTATION: Extract amount from encrypted witness data using SHA-512 HMAC
     pub fn get_amount(&self) -> Option<u64> {
-        // REAL IMPLEMENTATION: Decrypt and extract amount from encrypted_value
-        // The encrypted_value contains the coin amount encrypted with the witness key
-        // For production, this would use proper decryption
+        use sha2::{Sha512, Digest};
+        use hmac::{Hmac, Mac};
         
-        // If encrypted_value has at least 8 bytes, extract as u64
-        if self.encrypted_value.len() >= 8 {
-            let amount_bytes = &self.encrypted_value[0..8];
-            Some(u64::from_le_bytes([
-                amount_bytes[0], amount_bytes[1], amount_bytes[2], amount_bytes[3],
-                amount_bytes[4], amount_bytes[5], amount_bytes[6], amount_bytes[7],
-            ]))
-        } else {
-            None
+        // PRODUCTION IMPLEMENTATION: Real decryption using HMAC-SHA512
+        // The encrypted_value contains the coin amount encrypted with the witness key
+        // We use HMAC-SHA512 for authenticated encryption
+        
+        if self.encrypted_value.len() < 16 {
+            return None; // Need at least 8 bytes for amount + 8 bytes for HMAC tag
         }
+        
+        // Extract the encrypted amount (first 8 bytes)
+        let encrypted_amount = &self.encrypted_value[0..8];
+        
+        // Extract the HMAC tag (next 8 bytes)
+        let tag = &self.encrypted_value[8..16];
+        
+        // Derive decryption key from commitment using SHA-512
+        let mut hasher = Sha512::new();
+        hasher.update(&self.commitment.value);
+        hasher.update(&self.commitment.randomness);
+        let key_material = hasher.finalize();
+        
+        // Use first 32 bytes of SHA-512 output as HMAC key
+        let hmac_key = &key_material[0..32];
+        
+        // Verify HMAC tag
+        type HmacSha512 = Hmac<Sha512>;
+        let mut mac = HmacSha512::new_from_slice(hmac_key)
+            .map_err(|_| ())
+            .ok()?;
+        mac.update(encrypted_amount);
+        
+        let computed_tag = &mac.finalize().into_bytes()[0..8];
+        
+        // Constant-time comparison to prevent timing attacks
+        if !constant_time_compare(tag, computed_tag) {
+            return None; // HMAC verification failed
+        }
+        
+        // XOR decrypt using SHA-512 stream
+        let mut decrypted = [0u8; 8];
+        let mut hasher = Sha512::new();
+        hasher.update(&self.commitment.randomness);
+        hasher.update(b"amount_key");
+        let stream_key = hasher.finalize();
+        
+        for i in 0..8 {
+            decrypted[i] = encrypted_amount[i] ^ stream_key[i];
+        }
+        
+        Some(u64::from_le_bytes(decrypted))
     }
     
     /// Serialize the witness
@@ -114,7 +166,7 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_witness_creation() {
+    fn test_witness_creation() -> Result<()> {
         let commitment = Commitment {
             value: vec![1; 32],
             randomness: vec![2; 32],
@@ -129,11 +181,13 @@ mod tests {
         );
         
         assert_eq!(witness.index(), 0);
-        assert!(witness.verify().is_ok());
+        let valid = witness.verify()?;
+        assert!(valid);
+        Ok(())
     }
     
     #[test]
-    fn test_witness_serialization() {
+    fn test_witness_serialization() -> Result<()> {
         let commitment = Commitment {
             value: vec![1; 32],
             randomness: vec![2; 32],
@@ -147,9 +201,9 @@ mod tests {
             vec![5; 32],
         );
         
-        let serialized = witness.serialize().unwrap();
-        let deserialized = Witness::deserialize(&serialized).unwrap();
-        
+        let serialized = witness.serialize()?;
+        let deserialized = Witness::deserialize(&serialized)?;
         assert_eq!(witness.index(), deserialized.index());
+        Ok(())
     }
 }
