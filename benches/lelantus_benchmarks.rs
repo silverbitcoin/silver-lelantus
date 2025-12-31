@@ -13,14 +13,13 @@ fn bench_commitment_creation(c: &mut Criterion) {
                 return;
             }
         };
-        
-        b.iter(|| {
-            match scheme.commit(black_box(1000)) {
-                Ok(commitment) => commitment,
-                Err(e) => {
-                    eprintln!("Commitment creation failed: {}", e);
-                    return;
-                }
+
+        b.iter(|| match scheme.commit(black_box(1000)) {
+            Ok(commitment) => {
+                let _ = commitment;
+            }
+            Err(e) => {
+                eprintln!("Commitment creation failed: {}", e);
             }
         });
     });
@@ -36,7 +35,7 @@ fn bench_accumulator_add(c: &mut Criterion) {
                 return;
             }
         };
-        
+
         b.iter(|| {
             let commitment = match state.commitment_scheme().commit(black_box(1000)) {
                 Ok(c) => c,
@@ -45,7 +44,7 @@ fn bench_accumulator_add(c: &mut Criterion) {
                     return;
                 }
             };
-            
+
             if let Err(e) = state.add_coin(&commitment) {
                 eprintln!("Failed to add coin: {}", e);
             }

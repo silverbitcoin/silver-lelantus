@@ -1,33 +1,31 @@
 //! Serialization utilities for Lelantus
 
+use crate::errors::{LelantusError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use crate::errors::{LelantusError, Result};
 
 /// Serializable wrapper for Lelantus types
 pub trait LelantusSerializable: Serialize + for<'de> Deserialize<'de> {
     /// Serialize to bytes
     fn to_bytes(&self) -> Result<Vec<u8>> {
-        serde_json::to_vec(self)
-            .map_err(|e| LelantusError::SerializationError(e.to_string()))
+        serde_json::to_vec(self).map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
-    
+
     /// Deserialize from bytes
     fn from_bytes(data: &[u8]) -> Result<Self> {
-        serde_json::from_slice(data)
-            .map_err(|e| LelantusError::SerializationError(e.to_string()))
+        serde_json::from_slice(data).map_err(|e| LelantusError::SerializationError(e.to_string()))
     }
 }
 
 /// Hex encoding utilities
 pub mod hex_util {
     use crate::errors::Result;
-    
+
     /// Encode bytes to hex string
     pub fn encode(data: &[u8]) -> String {
         hex::encode(data)
     }
-    
+
     /// Decode hex string to bytes
     pub fn decode(hex_str: &str) -> Result<Vec<u8>> {
         hex::decode(hex_str)
@@ -38,13 +36,13 @@ pub mod hex_util {
 /// JSON encoding utilities
 pub mod json {
     use crate::errors::Result;
-    
+
     /// Encode value to JSON
     pub fn encode<T: serde::Serialize>(value: &T) -> Result<String> {
         serde_json::to_string(value)
             .map_err(|e| crate::errors::LelantusError::SerializationError(e.to_string()))
     }
-    
+
     /// Decode JSON to value
     pub fn decode<T: for<'de> serde::Deserialize<'de>>(json_str: &str) -> Result<T> {
         serde_json::from_str(json_str)
@@ -56,45 +54,26 @@ pub mod json {
 mod tests {
     use super::*;
     use crate::commitment::Commitment;
-    
+
     #[test]
-    fn test_hex_encoding() {
+    fn test_hex_encoding() -> Result<()> {
         let data = vec![1, 2, 3, 4, 5];
         let encoded = hex_util::encode(&data);
-        match hex_util::decode(&encoded) {
-            Ok(decoded) => {
-                assert_eq!(data, decoded);
-            }
-            Err(e) => {
-                // PRODUCTION: Proper error assertion instead of panic
-                assert!(false, "Hex decoding failed: {:?}", e);
-            }
-        }
+        let decoded = hex_util::decode(&encoded)?;
+        assert_eq!(data, decoded);
+        Ok(())
     }
-    
+
     #[test]
-    fn test_json_encoding() {
+    fn test_json_encoding() -> Result<()> {
         let commitment = Commitment {
             value: vec![1; 32],
             randomness: vec![2; 32],
         };
-        
-        match json::encode(&commitment) {
-            Ok(json_str) => {
-                match json::decode::<Commitment>(&json_str) {
-                    Ok(decoded) => {
-                        assert_eq!(commitment.value, decoded.value);
-                    }
-                    Err(e) => {
-                        // PRODUCTION: Proper error assertion instead of panic
-                        assert!(false, "JSON decoding failed: {:?}", e);
-                    }
-                }
-            }
-            Err(e) => {
-                // PRODUCTION: Proper error assertion instead of panic
-                assert!(false, "JSON encoding failed: {:?}", e);
-            }
-        }
+
+        let json_str = json::encode(&commitment)?;
+        let decoded: Commitment = json::decode(&json_str)?;
+        assert_eq!(commitment.value, decoded.value);
+        Ok(())
     }
 }
